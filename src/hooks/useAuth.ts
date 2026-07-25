@@ -8,7 +8,10 @@
 import { useCallback } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useDossierStore } from '../store/dossierStore';
-import { seConnecter as appelConnexion } from '../services/authService';
+import {
+  seConnecter as appelConnexion,
+  seDeconnecter as appelDeconnexion,
+} from '../services/authService';
 import type { Role } from '../types/auth.types';
 
 export function useAuth() {
@@ -27,8 +30,14 @@ export function useAuth() {
     [setUser]
   );
 
-  /** Purge aussi le dossier sélectionné : il appartient à la session précédente. */
-  const deconnexion = useCallback(() => {
+  /**
+   * Déconnexion. On prévient d'abord le backend (tant que le token est encore
+   * présent, pour que l'intercepteur ajoute le Bearer), PUIS on vide l'état
+   * local. Purge aussi le dossier sélectionné : il appartient à la session
+   * précédente.
+   */
+  const deconnexion = useCallback(async () => {
+    await appelDeconnexion();
     clear();
     reinitialiserDossier();
   }, [clear, reinitialiserDossier]);

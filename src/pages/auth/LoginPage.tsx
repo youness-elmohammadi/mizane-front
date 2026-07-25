@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
 import { useAuth } from "../../hooks/useAuth";
 import { COMPTES_DEMO_PUBLICS } from "../../services/authService";
 
@@ -31,8 +32,13 @@ export default function LoginPage() {
         replace: true,
       });
     } catch (err) {
+      const messageBackend = axios.isAxiosError<{ error?: string }>(err)
+        ? err.response?.data?.error
+        : undefined;
+
       setError(
-        err instanceof Error ? err.message : 'Email ou mot de passe incorrect'
+        messageBackend ??
+          (err instanceof Error ? err.message : 'Email ou mot de passe incorrect')
       );
       setLoading(false);
     }

@@ -1,9 +1,11 @@
 /**
  * Authentification.
  *
- * La forme de la réponse (`{ token, utilisateur }`) est déjà celle que
- * renverra `POST /api/auth/login` côté Spring Boot : le jour où le backend
- * est prêt, seule la branche `USE_MOCKS` disparaît.
+ * Cette couche service est l'ADAPTATEUR entre le frontend et le backend :
+ * le backend Spring attend `{ email, password }` et répond
+ * `{ data: { access_token, user } }` (cf. AuthController). On traduit ici
+ * vers la forme interne `{ token, utilisateur }` — ainsi les pages, hooks
+ * et le store restent inchangés, quelle que soit la forme du wire.
  */
 
 import api from './api';
@@ -14,6 +16,14 @@ import { CABINET_ID } from '../mocks/mockData';
 export interface ReponseConnexion {
   token: string;
   utilisateur: Utilisateur;
+}
+
+/** Forme brute renvoyée par `POST /api/auth/login` du backend Spring. */
+interface ReponseLoginBackend {
+  data: {
+    access_token: string;
+    user: Utilisateur;
+  };
 }
 
 /** Comptes de démonstration — remplacés par la table `utilisateur` du backend. */
@@ -71,11 +81,17 @@ export async function seConnecter(
   motDePasse: string
 ): Promise<ReponseConnexion> {
   if (!USE_MOCKS) {
-    const { data } = await api.post<ReponseConnexion>('/api/auth/login', {
+    // Le backend Spring lit `password` et renvoie une enveloppe
+    // `{ data: { access_token, user } }`. On la traduit vers `{ token, utilisateur }`.
+    const { data } = await api.post<ReponseLoginBackend>('/api/auth/login', {
       email,
-      motDePasse,
+      password: motDePasse,
     });
-    return data;
+
+    return {
+      token: data.data.access_token,
+      utilisateur: data.data.user,
+    };
   }
 
   await delaiSimule(null, 400);
@@ -101,4 +117,18 @@ export async function seConnecter(
     token: `mock-jwt.${btoa(utilisateur.id)}.signature`,
     utilisateur,
   };
+}
+
+/**
+ * Déconnexion côté serveur : révoque le refresh token et efface le cookie.
+ * Best-effort — si le backend ne répond pas, on n'empêche pas la déconnexion
+ * locale (assurée par `useAuth.deconnexion`). Ne fait rien en mode mock.
+ */
+export async function seDeconnecter(): Promise<void> {
+  if (USE_MOCKS) return;
+  try {
+    await api.post('/api/auth/logout');
+  } catch {
+    // On ignore volontairement l'échec : la purge de l'état client suffit.
+  }
 }

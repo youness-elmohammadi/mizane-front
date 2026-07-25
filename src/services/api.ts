@@ -8,6 +8,9 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    // Nécessaire pour que le cookie httpOnly `refresh_token` posé par le
+    // backend soit envoyé/reçu (le backend active allowCredentials côté CORS).
+    withCredentials: true,
 });
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {

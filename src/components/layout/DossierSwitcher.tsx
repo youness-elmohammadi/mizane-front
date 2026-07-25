@@ -35,6 +35,7 @@ export default function DossierSwitcher({
     exercicesDisponibles,
     setDossier,
     setExercice,
+    isLoading,
   } = useDossier();
 
   return (
@@ -44,6 +45,7 @@ export default function DossierSwitcher({
           dossiers={dossiers}
           selectionne={dossier}
           onSelectionner={setDossier}
+          chargement={isLoading}
         />
       )}
 
@@ -70,6 +72,7 @@ interface SelecteurDossierProps {
   dossiers: Dossier[];
   selectionne: Dossier | null;
   onSelectionner: (dossier: Dossier) => void;
+  chargement: boolean;
 }
 
 /** Seuil au-delà duquel il faudra virtualiser la liste (optionnel en V1). */
@@ -79,6 +82,7 @@ function SelecteurDossier({
   dossiers,
   selectionne,
   onSelectionner,
+  chargement,
 }: SelecteurDossierProps) {
   const [ouvert, setOuvert] = useState(false);
   const [recherche, setRecherche] = useState('');
@@ -147,14 +151,21 @@ function SelecteurDossier({
       <button
         type="button"
         onClick={basculer}
+        disabled={chargement}
         aria-haspopup="listbox"
         aria-expanded={ouvert}
         className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2
                    text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors
-                   focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[220px]"
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[220px]
+                   disabled:opacity-60 disabled:cursor-not-allowed"
       >
+        {chargement && (
+          <i className="fa-solid fa-spinner fa-spin text-xs text-gray-400" aria-hidden="true" />
+        )}
         <span className="flex-1 text-left truncate">
-          {selectionne?.raisonSociale ?? 'Sélectionner un dossier'}
+          {chargement
+            ? 'Chargement...'
+            : (selectionne?.raisonSociale ?? 'Sélectionner un dossier')}
         </span>
         <i
           className={`fa-solid fa-chevron-down text-xs text-gray-400 transition-transform

@@ -5,7 +5,13 @@ import type { Utilisateur } from '../types/auth.types';
 interface AuthState {
     setUser: (user: Utilisateur, token: string) => void;
     token: string | null;
-    user: Utilisateur | null;
+    user: {
+        id: string
+        nom: string
+        email: string
+        role: 'GERANT' | 'ASSISTANT' | 'CLIENT'
+        cabinetId: string
+    } | null
     clear: () => void;
     isAuthenticated: () => boolean;
 }
