@@ -10,6 +10,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { BadgeStatut, BadgeTva } from '../../components/ui/Badge';
 import { Chargement, Erreur, Vide } from '../../components/ui/EtatChargement';
+import ModalDossier from '../../components/dossiers/ModalDossier';
 
 type FiltreStatut = 'TOUS' | StatutDossier;
 
@@ -26,6 +27,7 @@ export default function DossiersListPage() {
 
   const [recherche, setRecherche] = useState('');
   const [filtreStatut, setFiltreStatut] = useState<FiltreStatut>('TOUS');
+  const [modaleOuverte, setModaleOuverte] = useState(false);
 
   // useMemo : le filtrage ne se recalcule que si la liste ou les critères changent.
   const dossiersFiltres = useMemo(() => {
@@ -59,7 +61,11 @@ export default function DossiersListPage() {
         titre="Dossiers clients"
         sousTitre={`${nbActifs} dossiers actifs`}
         actions={
-          <Button icone="fa-plus" className="py-2.5">
+          <Button
+            icone="fa-plus"
+            className="py-2.5"
+            onClick={() => setModaleOuverte(true)}
+          >
             Nouveau dossier
           </Button>
         }
@@ -147,6 +153,11 @@ export default function DossiersListPage() {
           </div>
         )}
       </Card>
+
+      {/* Montée uniquement à l'ouverture : le formulaire repart toujours vierge. */}
+      {modaleOuverte && (
+        <ModalDossier ouverte onFermer={() => setModaleOuverte(false)} />
+      )}
     </div>
   );
 }
