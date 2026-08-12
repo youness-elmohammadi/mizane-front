@@ -4,6 +4,12 @@ import type { Utilisateur } from '../types/auth.types';
 
 interface AuthState {
     setUser: (user: Utilisateur, token: string) => void;
+    /**
+     * Remplace le seul access token, sans toucher à l'utilisateur.
+     * Utilisé après un rafraîchissement silencieux (voir services/api.ts) :
+     * l'identité ne change pas, uniquement le jeton.
+     */
+    setToken: (token: string) => void;
     token: string | null;
     user: {
         id: string
@@ -22,6 +28,7 @@ export const useAuthStore = create<AuthState>()(
             token: null,
             user: null,
             setUser: (user ,token) => set({user, token}),
+            setToken: (token) => set({ token }),
             clear: () => set({ user: null, token: null}),
             isAuthenticated: () => get().token !== null,
         }),
