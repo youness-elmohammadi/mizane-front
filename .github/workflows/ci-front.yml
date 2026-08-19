@@ -1,0 +1,138 @@
+name: CI — Frontend Mizan
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/youness-elmohammadi/mizane-front
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Job 1 — Lint, TypeCheck, Build Vite
+  # ─────────────────────────────────────────────
+  build-and-check:
+    name: Lint + TypeCheck + Build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependances
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: TypeCheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Build Vite (verification syntaxe uniquement)
+        run: pnpm run build
+        env:
+          VITE_API_URL: /api
+
+  # ─────────────────────────────────────────────
+  # Job 2 — Build et Push image Docker vers GHCR
+  # VITE_API_URL injecte au build via --build-arg
+  # main    → https://api.mizan.ma   tag :latest
+  # develop → https://api-preprod.mizan.ma   tag :preprod
+  # ─────────────────────────────────────────────
+  build-and-push:
+    name: Build et Push image Docker
+    runs-on: ubuntu-24.04
+    needs: build-and-check
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determiner tag et API URL selon la branche
+        id: vars
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+            echo "api_url=http://94.72.98.10:8083" >> $GITHUB_OUTPUT
+          else
+            echo "tag=preprod" >> $GITHUB_OUTPUT
+            echo "api_url=http://94.72.98.10:8083" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log in GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build et push image (VITE_API_URL injecte au build)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }}
+          build-args: |
+            VITE_API_URL=${{ steps.vars.outputs.api_url }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────────
+  # Job 3 — Deploy sur VPS via SSH
+  # main    → /home/youness/mizan (production)
+  # develop → /home/youness/mizan-preprod (preprod)
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Deploy VPS
+    runs-on: ubuntu-24.04
+    needs: build-and-push
+
+    steps:
+      - name: Deploy production (main)
+        if: github.ref_name == 'main'
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /home/youness/mizan
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker exec npm nginx -s reload || true
+
+      - name: Deploy preprod (develop)
+        if: github.ref_name == 'develop'
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /home/youness/mizan-preprod
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker exec npm nginx -s reload || true
