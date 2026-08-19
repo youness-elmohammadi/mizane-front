@@ -71,10 +71,10 @@ jobs:
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
             echo "tag=latest" >> $GITHUB_OUTPUT
-            echo "api_url=https://api.mizan.ma" >> $GITHUB_OUTPUT
+            echo "api_url=http://94.72.98.10:8083" >> $GITHUB_OUTPUT
           else
             echo "tag=preprod" >> $GITHUB_OUTPUT
-            echo "api_url=https://api-preprod.mizan.ma" >> $GITHUB_OUTPUT
+            echo "api_url=http://94.72.98.10:8083" >> $GITHUB_OUTPUT
           fi
 
       - name: Log in GHCR
