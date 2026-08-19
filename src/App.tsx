@@ -11,6 +11,7 @@ import BilanPage from './pages/etats/BilanPage';
 import CpcPage from './pages/etats/CpcPage';
 import PortailPage from './pages/portail/PortailPage';
 import NouvelleEcriturePage from './pages/ecritures/NouvelleEcriturePage';
+import BalancePage from './pages/etats/BalancePage';
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="dossiers" element={<DossiersListPage />} />
             <Route path="saisie" element={<EcrituresPage />} />
             <Route path="saisie/nouvelle" element={<NouvelleEcriturePage />} />
+            <Route path="balance" element={<BalancePage />} />
             <Route path="bilan" element={<BilanPage />} />
             <Route path="cpc" element={<CpcPage />} />
             <Route path="portail" element={<PortailPage />} />

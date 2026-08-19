@@ -21,6 +21,7 @@ const SECTIONS = [
     titre: 'Comptabilité',
     items: [
       { to: '/saisie', icon: 'fa-pencil', label: 'Saisie comptable' },
+      { to: '/balance', icon: 'fa-scale-balanced', label: 'Balance' },
       { to: '/bilan', icon: 'fa-chart-bar', label: 'Bilan' },
       { to: '/cpc', icon: 'fa-chart-line', label: 'CPC' },
     ],

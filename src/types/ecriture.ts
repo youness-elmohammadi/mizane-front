@@ -1,9 +1,13 @@
 /**
- * Modèle d'écriture pour l'écran de saisie (ticket S2-F01).
+ * Modèle de référence des écritures comptables.
  *
- * Distinct de `ecriture.types.ts` (ancien modèle en centimes) : ici les
- * montants sont en DIRHAMS (nombres à 2 décimales), et l'écriture porte son
- * statut + ses liens de contre-passation.
+ * Aligné CHAMP POUR CHAMP sur le `EcritureDto` du backend : les montants sont
+ * en DIRHAMS (2 décimales), et l'écriture porte son statut ainsi que ses liens
+ * de contre-passation. C'est ce qui permet à `ecrituresApi.ts` de n'effectuer
+ * aucune conversion — il désenveloppe le `{ data }` et c'est tout.
+ *
+ * À ne pas confondre avec `ecriture.types.ts` (montants en centimes), qui ne
+ * sert plus qu'aux données mockées des états.
  */
 
 /** Journaux comptables — même liste que l'enum backend CodeJournal (+ AN). */
