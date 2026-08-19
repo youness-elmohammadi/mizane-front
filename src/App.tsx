@@ -12,6 +12,7 @@ import CpcPage from './pages/etats/CpcPage';
 import PortailPage from './pages/portail/PortailPage';
 import NouvelleEcriturePage from './pages/ecritures/NouvelleEcriturePage';
 import BalancePage from './pages/etats/BalancePage';
+import TvaPage from './pages/etats/TvaPage';
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="balance" element={<BalancePage />} />
             <Route path="bilan" element={<BilanPage />} />
             <Route path="cpc" element={<CpcPage />} />
+            <Route path="tva" element={<TvaPage />} />
             <Route path="portail" element={<PortailPage />} />
           </Route>
         </Route>

@@ -6,12 +6,12 @@
  * données serveur d'un côté, état d'interface de l'autre.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { useDossierStore } from '../store/dossierStore';
 import { listerDossiers } from '../services/dossierService';
-import { EXERCICES } from '../data/mock-dossiers';
+import { listerExercices } from '../services/ecrituresApi';
 
 /** Clés de cache React Query, centralisées pour éviter les fautes de frappe. */
 export const CLES_DOSSIERS = {
@@ -48,15 +48,44 @@ export function useDossier() {
     setDossier(dossiers[0]);
   }, [dossiers, dossierCourant, setDossier]);
 
+  /**
+   * Exercices RÉELS du dossier courant.
+   *
+   * Ils étaient auparavant codés en dur (`['2025', '2024']`). Ce n'était pas
+   * qu'un défaut d'affichage : les pages filtrent sur l'exercice sélectionné,
+   * donc un document publié en 2026 restait invisible tant que le sélecteur
+   * proposait 2025. La liste vient maintenant du backend.
+   */
+  const { data: exercicesApi } = useQuery({
+    queryKey: ['exercices', dossierCourant?.id],
+    queryFn: () => listerExercices(dossierCourant!.id),
+    enabled: !!dossierCourant,
+  });
+
+  const exercicesDisponibles = useMemo(
+    () => (exercicesApi ?? []).map((e) => String(e.annee)),
+    [exercicesApi]
+  );
+
+  // Si l'exercice mémorisé n'existe pas sur ce dossier, on retombe sur le plus
+  // récent — sinon toutes les pages afficheraient « aucune donnée » sans raison.
+  useEffect(() => {
+    if (exercicesDisponibles.length === 0) return;
+    if (exercicesDisponibles.includes(exerciceCourant)) return;
+    setExercice(exercicesDisponibles[0]);
+  }, [exercicesDisponibles, exerciceCourant, setExercice]);
+
   return {
     dossiers: dossiers ?? [],
     dossier: dossierCourant,
     dossierId: dossierCourant?.id ?? null,
-    /** Chaîne, telle que stockée ('2025'). */
+    /** Chaîne, telle que stockée ('2026'). */
     exerciceCourant,
     /** Nombre, pour les appels de service et les calculs. */
     exercice: Number(exerciceCourant),
-    exercicesDisponibles: EXERCICES,
+    exercicesDisponibles,
+    /** Exercices complets (id UUID + statut), pour la saisie et la clôture. */
+    exercices: exercicesApi ?? [],
     setDossier,
     setExercice,
     isLoading,

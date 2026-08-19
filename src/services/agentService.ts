@@ -52,11 +52,11 @@ export async function envoyerMessage(
   contexte: ContexteAgent
 ): Promise<MessageChat> {
   if (!USE_MOCKS) {
-    const { data } = await api.post<MessageChat>('/api/agent/messages', {
+    const { data } = await api.post<{ data: MessageChat }>('/api/agent/messages', {
       question,
       contexte,
     });
-    return data;
+    return data.data;
   }
 
   const contenu = MOCK_RESPONSES[indexRotation % MOCK_RESPONSES.length];

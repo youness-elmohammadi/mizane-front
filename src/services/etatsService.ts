@@ -125,14 +125,68 @@ export async function listerDocumentsPublies(
   dossierId: string
 ): Promise<DocumentPublie[]> {
   if (!USE_MOCKS) {
-    const { data } = await api.get<DocumentPublie[]>(
+    const { data } = await api.get<{ data: DocumentPublie[] }>(
       `/api/dossiers/${dossierId}/documents`
     );
-    return data;
+    return data.data;
   }
 
   const docs = MOCK_DOCUMENTS.filter((d) => d.dossierId === dossierId);
   return delaiSimule(docs);
+}
+
+/** Publie un état sur le portail du client. Réservé au cabinet. */
+export async function publierDocument(
+  dossierId: string,
+  document: {
+    type: 'BILAN' | 'CPC' | 'TVA' | 'AUTRE';
+    exercice: number;
+    libelle: string;
+    sousTitre?: string;
+  }
+): Promise<DocumentPublie> {
+  const { data } = await api.post<{ data: DocumentPublie }>(
+    `/api/dossiers/${dossierId}/documents`,
+    document
+  );
+  return data.data;
+}
+
+// ─────────────────────────── Déclaration de TVA ───────────────────────────
+
+/**
+ * Déclaration de TVA d'une période. Montants en centimes.
+ *
+ * `tvaDue` et `creditTva` s'excluent : une période dégage soit un montant à
+ * payer, soit un crédit reportable — jamais les deux.
+ */
+export interface DeclarationTva {
+  dossierId: string;
+  regime: 'MENSUEL' | 'TRIMESTRIEL' | 'NON_ASSUJETTI';
+  /** Libellé lisible, ex. « Mars 2026 » ou « T1 2026 ». */
+  periode: string;
+  dateDebut: string;
+  dateFin: string;
+  /** Date limite de dépôt DGI : le 20 du mois suivant. */
+  dateLimiteDepot: string;
+  tvaFacturee: number;
+  tvaRecuperable: number;
+  tvaDue: number;
+  creditTva: number;
+  chiffreAffairesHt: number;
+  achatsHt: number;
+}
+
+export async function obtenirDeclarationTva(
+  dossierId: string,
+  annee?: number,
+  periode?: number
+): Promise<DeclarationTva> {
+  const { data } = await api.get<{ data: DeclarationTva }>(
+    `/api/dossiers/${dossierId}/tva`,
+    { params: { annee, periode } }
+  );
+  return data.data;
 }
 
 /**

@@ -24,6 +24,7 @@ const SECTIONS = [
       { to: '/balance', icon: 'fa-scale-balanced', label: 'Balance' },
       { to: '/bilan', icon: 'fa-chart-bar', label: 'Bilan' },
       { to: '/cpc', icon: 'fa-chart-line', label: 'CPC' },
+      { to: '/tva', icon: 'fa-receipt', label: 'TVA' },
     ],
   },
   {
