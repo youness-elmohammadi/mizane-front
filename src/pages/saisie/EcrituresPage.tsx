@@ -1,37 +1,76 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Ecriture, Journal } from '../../types/ecriture';
 import { LIBELLES_JOURNAUX } from '../../types/ecriture';
-import { MOCK_ECRITURES } from '../../data/mock-ecritures';
 import EcritureTable from '../../components/ecritures/EcritureTable';
+import { useDossier } from '../../hooks/useDossier';
+import {
+  contrepasser,
+  listerEcritures,
+  listerExercices,
+} from '../../services/ecrituresApi';
 
 const JOURNAUX: Journal[] = ['AC', 'VE', 'BQ', 'CA', 'OD', 'AN'];
-const EXERCICES = ['2026', '2025'];
 
 /**
  * Écran de saisie des écritures (S2-F01).
- * Données mockées (jusqu'à S2-F03) mais servies via React Query, pour avoir de
- * vrais états chargement / erreur / vide et un branchement API trivial ensuite.
+ *
+ * Les écritures viennent du backend, filtrées côté serveur par dossier et
+ * exercice (le scope cabinet est déduit du token). Le filtre journal est
+ * appliqué côté serveur lui aussi : c'est lui qui porte l'index SQL.
  */
 export default function EcrituresPage() {
   const navigate = useNavigate();
-  const [journal, setJournal] = useState<Journal | 'ALL'>('ALL');
-  const [exercice, setExercice] = useState('2026');
+  const queryClient = useQueryClient();
+  const { dossierId } = useDossier();
 
-  const { data, isLoading, isError, refetch } = useQuery<Ecriture[]>({
-    queryKey: ['ecritures-mock', exercice],
-    queryFn: () =>
-      new Promise((resolve) => setTimeout(() => resolve(MOCK_ECRITURES), 500)),
+  const [journal, setJournal] = useState<Journal | 'ALL'>('ALL');
+  const [exerciceId, setExerciceId] = useState<string | undefined>(undefined);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const exercices = useQuery({
+    queryKey: ['exercices', dossierId],
+    queryFn: () => listerExercices(dossierId!),
+    enabled: dossierId !== null,
   });
 
-  // Filtre journal + exercice, recalculé en temps réel.
-  const ecrituresFiltrees = useMemo<Ecriture[]>(() => {
-    return (data ?? [])
-      .filter((e) => journal === 'ALL' || e.journal === journal)
-      .filter((e) => e.dateEcriture.startsWith(exercice));
-  }, [data, journal, exercice]);
+  // Sans sélection explicite, le backend prend l'exercice ouvert le plus récent.
+  const exerciceActif =
+    exercices.data?.find((e) => e.id === exerciceId) ??
+    exercices.data?.find((e) => e.statut === 'OUVERT') ??
+    exercices.data?.[0];
+
+  const ecritures = useQuery<Ecriture[]>({
+    queryKey: ['ecritures', dossierId, journal, exerciceActif?.id],
+    queryFn: () =>
+      listerEcritures(
+        dossierId!,
+        journal === 'ALL' ? undefined : journal,
+        exerciceActif?.id
+      ),
+    enabled: dossierId !== null,
+  });
+
+  const contrepassation = useMutation({
+    mutationFn: (ecritureId: string) => contrepasser(dossierId!, ecritureId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ecritures'] });
+    },
+    onError: (e: unknown) => {
+      const message =
+        (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        'La contre-passation a échoué.';
+      setErreur(message);
+    },
+  });
+
+  const liste = useMemo(() => ecritures.data ?? [], [ecritures.data]);
+
+  const exerciceAffiche = exerciceActif
+    ? String(exerciceActif.annee)
+    : String(new Date().getFullYear());
 
   return (
     <div className="p-6">
@@ -41,25 +80,29 @@ export default function EcrituresPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
+            disabled={exerciceActif?.statut === 'CLOTURE'}
             onClick={() =>
               navigate('/saisie/nouvelle', {
-                state: { journal: journal === 'ALL' ? 'AC' : journal, exercice },
+                state: {
+                  journal: journal === 'ALL' ? 'AC' : journal,
+                  exercice: exerciceAffiche,
+                },
               })
             }
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg
-                       text-sm font-medium flex items-center gap-2"
+                       text-sm font-medium flex items-center gap-2
+                       disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i className="fa-solid fa-plus" aria-hidden="true" /> Nouvelle écriture
           </button>
-          <button
-            type="button"
-            className="border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2
-                       rounded-lg text-sm font-medium"
-          >
-            Exporter FEC
-          </button>
         </div>
       </div>
+
+      {erreur && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {erreur}
+        </div>
+      )}
 
       {/* Filtres */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
@@ -86,21 +129,22 @@ export default function EcrituresPage() {
         </label>
         <select
           id="filtre-exercice"
-          value={exercice}
-          onChange={(e) => setExercice(e.target.value)}
+          value={exerciceActif?.id ?? ''}
+          onChange={(e) => setExerciceId(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
                      focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          {EXERCICES.map((ex) => (
-            <option key={ex} value={ex}>
-              {ex}
+          {(exercices.data ?? []).map((ex) => (
+            <option key={ex.id} value={ex.id}>
+              {ex.annee}
+              {ex.statut === 'CLOTURE' ? ' (clôturé)' : ''}
             </option>
           ))}
         </select>
       </div>
 
       {/* États : erreur → vide → tableau */}
-      {isError ? (
+      {ecritures.isError ? (
         <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
           <p className="text-gray-600 mb-3">
             <i
@@ -111,24 +155,38 @@ export default function EcrituresPage() {
           </p>
           <button
             type="button"
-            onClick={() => refetch()}
+            onClick={() => ecritures.refetch()}
             className="text-indigo-600 font-medium text-sm"
           >
             Réessayer
           </button>
         </div>
-      ) : !isLoading && ecrituresFiltrees.length === 0 ? (
+      ) : !ecritures.isLoading && liste.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
           <p className="text-gray-600 mb-3">Aucune écriture dans ce journal.</p>
-          <button type="button" className="text-indigo-600 font-medium text-sm">
+          <button
+            type="button"
+            onClick={() =>
+              navigate('/saisie/nouvelle', {
+                state: {
+                  journal: journal === 'ALL' ? 'AC' : journal,
+                  exercice: exerciceAffiche,
+                },
+              })
+            }
+            className="text-indigo-600 font-medium text-sm"
+          >
             + Créer la première écriture
           </button>
         </div>
       ) : (
         <EcritureTable
-          ecritures={ecrituresFiltrees}
-          loading={isLoading}
-          onContrepasser={(id) => console.log('contrepasser', id)}
+          ecritures={liste}
+          loading={ecritures.isLoading}
+          onContrepasser={(id) => {
+            setErreur(null);
+            contrepassation.mutate(id);
+          }}
         />
       )}
     </div>
