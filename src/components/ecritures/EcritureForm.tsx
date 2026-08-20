@@ -26,8 +26,17 @@ function parseMontant(s: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function genKey(): string {
+  // crypto.randomUUID() requiert un contexte sécurisé (HTTPS) — indisponible
+  // en HTTP sur le VPS. On utilise un fallback compatible avec tous les contextes.
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 function ligneVide(): LigneForm {
-  return { key: crypto.randomUUID(), compteNum: '', compteLib: '', libelle: '', debit: '', credit: '' };
+  return { key: genKey(), compteNum: '', compteLib: '', libelle: '', debit: '', credit: '' };
 }
 
 export default function EcritureForm({ exercice, onAnnuler, onValider }: EcritureFormProps) {
